@@ -1,0 +1,24 @@
+class foo {
+  int x;
+  int y;
+}
+
+void main() {
+
+   foo f1;
+   foo f2;
+
+   f1 = new foo();
+   f2 = new foo();
+   f1.x = 1;
+   f1.y = 2;
+   f2.x = 3;
+   f2.y = 4;
+ 
+   Print(f1.x); Println();
+   Print(f1.y); Println();
+   Print(f2.x); Println();
+   Print(f2.y); Println();
+
+
+}

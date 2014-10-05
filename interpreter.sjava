@@ -1,0 +1,264 @@
+/* This program interprets a simple machine language.
+   The machine has 8 general purpose registers [1-8],
+   and a zero regiter [0] which always has the value 0.
+   The machine has 1000 available memory locations.
+
+   Language specification:
+     Each machine word is made up of 5 decimal digits:
+       Most significant digit(s) represent the operation
+       Other 4 digits represent operands of the operation
+
+     0 0 0 0 0     Halt:      Halt execution
+     1 L L L 0     Label:     Define label LLL. 
+     2 1 r 0 0     I/O:       Read value of register r from input
+     2 0 r 0 0     I/O:       Write value of register r from input
+     3 r L L L     bzero:     Jump to label LLL if register r == 0 
+                               (use zero register for an unconditional jump)
+     4 x y z 0     slt:       Set register x = 1 if y < z, 0 otherwise.
+     5 x y z 0     add:       Add register y to register z, result in x
+     6 x y z 0     sub:       Subtract register z from register y, result in x
+     7 x M M M     load:      register x = mem[MMM]
+     8 x M M M     store:     mem[M M M] = x 
+     9 x Z Z Z     load 
+                   immediate: x = Z Z Z (positive values only.  Need to use 
+                      subtraction to get an immediate negative value)
+
+
+    For instance, the following program first reads values into
+    Mem[100] and Mem[101], then multiplies the value in
+    Mem[100] by the value in Mem[101], and places the result in
+    Mem[102]. Finally, the contents of Mem[102] are printed out
+
+
+    21100     Read into r1
+    81100     Mem[100] = r1
+    21100     Read into r1
+    81101     Mem[101] = r1
+    91000     r1 = 0
+    94001     r4 = 1
+    72100     r2 = Mem[100]
+    73101     r3 = Mem[101]
+    10010     Label 001
+    33002     Jump to label 002 if r3==0
+    51120     r1 = r1 + r2
+    63340     r3 = r3 - r4 (r4 == 1 here)
+    30001     Jump to label 001 
+    10020     Label 002
+    81102     Mem[102]= r1
+    20100     print out contents of r1
+    00000     Halt
+
+    This interpreter reads in a program into memory (starting with memory[0]
+    until a halt (00000) is entered, and then runs the program
+*/
+
+
+class LabelRec {
+    int Label;
+    int ProgramIndex;
+}
+
+
+void ExecuteProgram(int Memory[], LabelRec Labels[]);
+void setlabels(int Memory[], LabelRec Labels[]); 
+int  countLabels(int Memory[]);
+int ExecuteCommand(int Memory[], int IP, int Registers[], LabelRec Labels[]);
+int getLabelIndex(LabelRec Labels[], int label);
+void LoadProgram(int Memory[]);
+void PrintProgram(int Memory[]);
+
+void main() {
+    int Memory[] = new int[1000];
+    int Labels;
+    LoadProgram(Memory);
+    Println();
+    PrintProgram(Memory);
+    LabelRec Labels[] = new LabelRec[countLabels(Memory)];
+    setlabels(Memory, Labels);
+    ExecuteProgram(Memory,Labels);
+}
+
+void ExecuteProgram(int Memory[], LabelRec Labels[]) {
+
+    int Registers[] = new int[9];
+    int IP = 0;
+    Registers[0] = 0;
+    while (true) {
+	if (Memory[IP] == 0)
+	    return;
+	IP = ExecuteCommand(Memory, IP, Registers, Labels);
+    }
+	
+}
+    
+
+int countLabels(int Memory[]) {
+    int numLabels = 0;
+   
+    int i;
+
+    for (i=0; Memory[i] != 0; i++) {
+	if ((Memory[i]/10000) == 1)
+	    numLabels++;
+    }
+    return numLabels;
+}
+
+void setlabels(int Program[], LabelRec Labels[]) {
+    int currlabel = 0;
+    int i;
+    LabelRec label;
+
+    for (i=0; true; i++) {
+	if (Program[i] == 0) return;
+	if ((Program[i] / 10000) == 1) {
+	    label = new LabelRec();
+	    label.ProgramIndex = i;
+	    label.Label = (Program[i]-10000) / 10;
+	    Labels[currlabel] = label;
+	    currlabel++;
+	}
+    }
+}
+
+
+int ExecuteCommand(int Memory[], int IP, int Registers[], LabelRec Labels[]) {
+    int command = Memory[IP];
+    int r1;
+    int r2;
+    int r3;
+    int result;
+    int i;
+
+
+
+    if (command / 10000 == 1) { /* Label, no-op */
+	return IP + 1;
+    } else if (command / 10000 == 2) { /* Read/Write */
+	command = command - 20000;
+	if (command / 1000 == 1) { /* Read */
+	    r1 = (command - 1000) / 100;
+	    if (r1 > 0 && r1 < 9) {
+		Registers[r1] = Read();
+	    } else {
+		Print(99); Print(r1); Println(); }
+	} else {  /* Write */
+	    r1 = command / 100;
+	    if (r1 >= 0 && r1 < 9) {
+		Print(Registers[r1]);
+		Println();
+	    } 
+	}
+	return IP + 1;
+    } else if (command / 10000 == 3) { /* Jump if != 0 */
+	command = command - 30000;
+	r1 = command / 1000;
+	if (r1 >=0 && r1 < 9) {
+	    if (Registers[r1] == 0)
+		IP = getLabelIndex(Labels, command - r1 * 1000);
+	    else
+		IP++;
+	} else { 
+	    IP = IP +1;
+	}
+	return IP;
+    } else if (command / 10000 == 4) { /* SLT */
+	command = command - 40000;
+	r1 = command / 1000;
+	command = command - r1 * 1000;
+	r2 = command / 100;
+	command = command - r2 * 100;
+	r3 = command / 10;
+	if ((r1 > 0) && (r1 < 9)) 
+	    if ((r2 >= 0) && (r2 < 9) &&
+		(r3 >= 0) && (r3 < 9)) 
+		if (Registers[r2]  < Registers[r3])
+		    Registers[r1] = 1;
+		else
+		    Registers[r1] = 0;
+	return IP + 1;
+    } else if (command / 10000 == 5) { /* Add */
+	command = command - 50000;
+	r1 = command / 1000;
+	command = command - r1 * 1000;
+	r2 = command / 100;
+	command = command - r2 * 100;
+	r3 = command / 10;
+	if ((r1 > 0) && (r1 < 9) &&
+	    (r2 >= 0) && (r2 < 9) &&
+	    (r3 >= 0) && (r3 < 9)) {
+	    Registers[r1] = Registers[r2] + Registers[r3];
+	}
+	return IP + 1;
+    } else if (command / 10000 == 6) { /* Sub */
+	command = command - 60000;
+	r1 = command / 1000;
+	command = command - r1 * 1000;
+	r2 = command / 100;
+	command = command - r2 * 100;
+	r3 = command / 10;
+	if ((r1 > 0) && (r1 < 9) &&
+	    (r2 >= 0) && (r2 < 9) &&
+	    (r3 >= 0) && (r3 < 9))
+	    Registers[r1] = Registers[r2] - Registers[r3];
+	return IP + 1;
+    } else if (command / 10000 == 7) { /* load */
+	result = (command - 70000);
+	r1 = result;
+	r1 = r1 / 1000;
+	result = result - r1*1000;
+	if ((r1 > 0) && (r1 < 9))
+	   Registers[r1] = Memory[result]; 
+	return IP + 1;
+    } else if (command / 10000 == 8) { /* store */
+	result = (command-80000);
+	r1 = result;
+	r1 = r1 / 1000;
+	result = result - r1*1000;
+	if ((r1 > 0) && (r1 < 9))
+	    Memory[result] = Registers[r1];
+	return IP + 1;
+    } else if (command / 10000 == 9) { /* load immediate */
+	int result = (command-90000);
+	int register = result;
+	register = register / 1000;
+	result = result - register*1000;
+	if ((register > 0) && (register < 9))
+	    Registers[register] = result;
+	return IP + 1;
+    }
+
+}
+
+int getLabelIndex(LabelRec Labels[], int label) {
+    /* WARNING --NO ERROR CHECKING HERE!! */
+    int i;
+
+    for (i=0; true; i++) {
+	if (Labels[i].Label == label)
+	    return Labels[i].ProgramIndex;
+    }
+}
+
+
+void PrintProgram(int Memory[]) {
+    int index = 0;
+    do {
+	Print(Memory[index]);
+	Println();
+	index++;
+    } while (Memory[index-1] != 0);
+    Println();
+}
+
+
+
+void LoadProgram(int Memory[]) {
+    int index = 0;
+    do {
+	Memory[index] = Read();
+	index++;
+    } while (Memory[index-1] != 0);
+}
+
+

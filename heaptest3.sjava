@@ -1,0 +1,68 @@
+/*  Testing Heap memory
+    Output should be:
+
+0 1 2 
+10 11 12 
+20 21 22 
+0 1 2 3 4 5 6 7 8 9 
+0 1 2 3 4 5 6 7 8 9 
+100 101 102 103 
+
+*/
+
+class foo {
+  int x;
+  int y;
+}
+
+void main() {
+  	int A[];
+ 	int B[];
+	int x[][] = new int[3][];
+	int i;
+	int j;
+
+	foo f1 = new foo();
+
+	A = new int[10];
+	B = A;
+
+        for (i=0; i<10;i++)
+            A[i] = i;
+
+	foo f2 = new foo();
+
+	for(i=0; i<3; i++)
+	    x[i]= new int[3];
+       
+	for (i=0; i<3; i++) {
+	    for (j=0;j<3;j++) {
+		x[i][j] = i*10 + j;
+	    }
+	}
+
+	f1.x = 100;
+	f1.y = 101;
+	f2.x = 102;
+	f2.y = 103;
+
+	for (i=0; i<3; i++) {
+	    for (j=0;j<3;j++) {
+		Print(x[i][j]);
+	    }
+	   Println();
+	}
+
+	for (i=0; i<10; i++)
+           Print(A[i]);
+        Println();
+
+	for (i=0; i<10; i++)
+           Print(B[i]);
+        Println();
+
+	Print(f1.x); Print(f1.y); Print(f2.x); Print(f2.y);
+        Println();
+
+}
+

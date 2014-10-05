@@ -1,0 +1,598 @@
+/* Simple Connect4 game, one player against the computer.
+   Game is played on a 10x10 board.  Players take turns
+   placing pieces on the board, trying to get 4 in a row,
+   either vertically, horizontally, or diagonally.
+   A piece may be placed only on the bottom row, or directly 
+   above a previously placed piece. (The physical game uses
+   a vertical board, and checkers that slide all the way
+   down until they are stopped by the bottom of the board
+   or a previously placed piece)
+
+   The human player uses the (1) piece and goes first, while 
+   the computer uses the (2) and goes second.
+
+   Computer uses a min-max search, 2 level lookahead, with 
+   a simple evaluation function.  
+*/
+
+class MinMax {
+    int move;
+    int value;
+}
+
+
+void PrintBoard(int board[][]);
+int swap(int piece);
+void DoMove(int board[][], int col, int piece);
+void UndoMove(int board[][], int col);
+boolean win(int board[][], int lastmove);
+void ClearBoard(int board[][]);
+boolean legal(int move,int board[][]);
+int GetBoard(int board[][], int col, int row);
+int open1(int board[][], int x, int y, int color);
+int half_open2(int board[][], int x, int y, int color);
+int open2(int board[][], int x, int y, int color);
+int half_open3(int board[][], int x, int y, int color);
+int open3(int board[][], int x, int y, int color);
+int four(int board[][], int x, int y, int color);
+int value(int board[][]);
+int GetComputerMove(int board[][]);
+void min(int board[][], int level, MinMax result);
+void max(int board[][], int level, MinMax result);
+
+void main() {
+    int board[][];
+    int i;
+    boolean done = false;
+    int player = 1;
+    int move;
+    int numMoves = 0;
+    int winner = 0;
+    MinMax result = new MinMax();
+
+    board = new int[10][]; 
+    for (i=0; i<10; i++)
+       board[i] = new int[10]; 
+    ClearBoard(board); 
+    
+    PrintBoard(board);
+    while (!done) {
+	if (player == 1) {
+	    Println();
+	    do {
+		move = Read();
+	    } while (!legal(move,board));
+	}
+	else {
+	    min(board,2,result);
+	    move = result.move;
+	}
+	DoMove(board, move, player);
+	PrintBoard(board);
+	numMoves++;
+	
+	if (win(board,move)) {
+	    done = true; 
+	    winner = player;
+	    }
+	if (numMoves == 100) {
+	    done = true;
+	    winner = 0;
+	} 
+	player = swap(player); 
+    }
+    Println();
+    Println();
+    Print(winner);
+    Println();
+ }
+
+
+/* Evaluation function.  Positive is good for player 1,
+   Negative is good for player 2. 
+*/
+int value(int board[][]) {
+    int i;
+    int j;
+    
+    int open1_1 = 0;
+    int open1_2 = 0;
+    int half_open2_1 = 0;
+    int half_open2_2 = 0;
+    int open2_1 = 0;
+    int open2_2 = 0;
+    int half_open3_1 = 0;
+    int half_open3_2 = 0;
+    int open3_1 = 0;
+    int open3_2 = 0;
+    int four_1 = 0;
+    int four_2 = 0;
+
+    for (i=0;i<10;i++)
+	for (j=0;j<10;j++) {
+	    open1_1 = open1_1 + open1(board,i,j,1);
+	    open1_2 = open1_2 + open1(board,i,j,2);
+	    half_open2_1 = half_open2_1 + half_open2(board,i,j,1);
+	    half_open2_2 = half_open2_2 + half_open2(board,i,j,2);
+	    open2_1 = open2_1 + open2(board,i,j,1);
+	    open2_2 = open2_2 + open2(board,i,j,2);
+
+	    half_open3_1 = half_open3_1 + half_open3(board,i,j,1);
+	    half_open3_2 = half_open3_2 + half_open3(board,i,j,2);
+	    open3_1 = open3_1 + open3(board,i,j,1);
+	    open3_2 = open3_2 + open3(board,i,j,2);
+	    four_1 = four_1 + four(board,i,j,1);
+	    four_2 = four_2 + four(board,i,j,2);
+	}
+		 
+    return (open1_1 + half_open2_1*3 + open2_1*9+half_open3_1*20+
+	    open3_1*500+four_1*3000) -
+	(open1_2 + half_open2_2*3 + open2_2*9+half_open3_2*20+
+	 open3_2*500+four_2*3000);
+}
+
+/*  Returns true if a move is legal, false otherwise 
+*/
+boolean legal(int move,int board[][]) {
+    if ((move < 0) || (move > 9))
+	return false;
+    if (board[0][move] != 0)
+	return false;
+    return true;
+}
+
+/*  Clear the board -- set all board locations to 0
+*/
+void ClearBoard(int board[][]) {
+    int i;
+    int j;
+
+    for (i=0; i<10; i++)
+	for (j=0; j<10; j++)
+	   board[i][j] = 0;
+}
+
+
+/* Print out the board, with column numbers under it 
+*/
+void PrintBoard(int board[][]) {
+     int i;
+     int j;
+
+     for (i=0; i<10;i++) {
+        for (j=0; j<10; j++) 
+          Print(board[i][j]);
+        Println();
+     }
+     Println();
+     for (i=0; i<10; i++)
+	 Print(i);
+     Println();
+     Println();
+}
+
+
+int swap(int piece) {
+    if (piece == 1)
+	return 2;
+    else
+	return 1;
+}
+
+/* Implement a move -- update the board 
+*/
+void DoMove(int board[][], int col, int piece) {
+    
+    int i;
+    
+    for (i=1; i<10; i++) {
+	if (board[i][col] != 0) {
+	    board[i-1][col] = piece;
+	    return;
+	}
+    }
+    board[9][col] = piece;
+
+}
+
+/* Undo the last move in column col 
+*/
+void UndoMove(int board[][], int col) {
+    
+    int i;
+    
+    for (i=0; i<10; i++) {
+	if (board[i][col] != 0) {
+	    board[i][col] = 0;
+	    return;
+	}
+    }
+
+}
+
+/* Return true if the last move in column movecol
+   resulted in a 4-in-a-row, either horizontally,
+   vertically, or diagonally
+*/
+boolean win(int board[][], int movecol) {
+    
+    int moverow;
+    int length;
+    int color;
+    int delta;
+    
+    for (moverow=0; moverow <10 && GetBoard(board,moverow,movecol) == 0; moverow++);
+    if (GetBoard(board,moverow,movecol) == 0) return false;
+    color = board[moverow][movecol];
+    length = 0;
+    delta = 0;
+
+    while (GetBoard(board,moverow+delta,movecol) == color) {
+	length++;
+	delta++;
+    }
+    if (length >= 4) return true;
+    length = 0;
+    delta = 0;
+    while (GetBoard(board,moverow,movecol+delta) == color) {
+	length++;
+	delta++;
+    }
+    delta = 1;
+    while (GetBoard(board,moverow,movecol-delta) == color) {
+	length++;
+	delta++;
+    }
+    if (length >= 4) return true;
+    delta = 0;
+    length = 0;
+    
+    while (GetBoard(board,moverow+delta,movecol+delta) == color) {
+	length++;
+	delta++;
+    }
+    delta = 1;
+    while (GetBoard(board,moverow-delta,movecol-delta) == color) {
+	length++;
+	delta++;
+    }
+
+    if (length >= 4) return true;
+
+    delta = 0;
+    length = 0;
+
+    while (GetBoard(board,moverow+delta,movecol-delta) == color) {
+	length++;
+	delta++;
+    }
+    delta = 1;
+    while (GetBoard(board,moverow-delta,movecol+delta) == color) {
+	length++;
+	delta++;
+    }
+    if (length >= 4) return true;
+
+    return false;
+}
+
+
+/*  Return the piece at location [col][row], if [col][row]
+    is in the board.   If the location is outside the 
+    board, return 0
+*/
+int GetBoard(int board[][], int col, int row) {
+    if ((col < 0) || (col > 9) || (row < 0) || (row > 9))
+	return 3;
+    return board[col][row];
+}
+
+
+int open1(int board[][], int x, int y, int color) {
+    int total = 0;
+    if (board[x][y] == 0) 
+	return 0;
+    if ((GetBoard(board,x,y)==color) &&
+	(GetBoard(board,x-1,y) == 0) && (GetBoard(board,x+1,y) == 0))
+	total++;
+    if ((GetBoard(board,x,y) == color) &&
+	(GetBoard(board,x,y-1) == 0) && (GetBoard(board,x,y+1) == 0))
+	total++;
+    if ((GetBoard(board,x,y) == color) &&
+	(GetBoard(board,x-1,y-1) == 0) && (GetBoard(board,x+1,y+1) == 0))
+	total++;
+    if ((GetBoard(board,x,y) == color) &&
+	(GetBoard(board,x-1,y+1) == 0) && (GetBoard(board,x+1,y-1) == 0))
+	total++;
+    return total;
+}
+int half_open2(int board[][], int x, int y, int color) {
+    int total = 0;
+    if (board[x][y] == 0) 
+	return 0;
+    if ((GetBoard(board,x,y) == color) &&
+	((GetBoard(board,x-1,y) == swap(color)) || 
+	 (GetBoard(board,x-1,y) == 3)) && 
+	(GetBoard(board,x+1,y) == color) && 
+	 (GetBoard(board,x+2,y) == 0))
+	total++;
+    if ((GetBoard(board,x,y) == color) &&
+	((GetBoard(board,x,y-1) == swap(color)) || 
+	 (GetBoard(board,x,y-1) == 3)) && 
+	(GetBoard(board,x,y+1) == color) &&
+	(GetBoard(board,x,y+2) == 0))
+	total++;
+    if ((GetBoard(board,x,y) == color) &&
+	((GetBoard(board,x-1,y-1) == swap(color)) || 
+	 (GetBoard(board,x-1,y-1) == 3)) && 
+	(GetBoard(board,x+1,y+1) == color) &&
+	(GetBoard(board,x+2,y+2) == 0))
+	total++;
+    if ((GetBoard(board,x,y) == color) &&
+	((GetBoard(board,x-1,y+1) == swap(color)) || 
+	 (GetBoard(board,x-1,y+1) == 3)) &&
+	(GetBoard(board,x+1,y-1) == color) &&
+	(GetBoard(board,x+2,y-2) == 0))
+	total++;
+    if ((GetBoard(board,x,y) == color) &&
+	(GetBoard(board,x-1,y) == 0) && 
+	(GetBoard(board,x+1,y) == color) && 
+	((GetBoard(board,x+2,y) == swap(color)) ||
+	 (GetBoard(board,x+2,y) == 3)))
+	total++;
+    if ((GetBoard(board,x,y) == color) &&
+	(GetBoard(board,x,y-1) == 0) && 
+	(GetBoard(board,x,y+1) == color) &&
+	((GetBoard(board,x,y+2) == swap(color)) ||
+	 (GetBoard(board,x,y+2) == 3)))
+	total++;
+    if ((GetBoard(board,x,y) == color) &&
+	(GetBoard(board,x-1,y-1) == 0) && 
+	(GetBoard(board,x+1,y+1) == color) &&
+	((GetBoard(board,x+2,y+2) == swap(color)) ||
+	 (GetBoard(board,x+2,y+2) == 3)))
+	total++;
+    if ((GetBoard(board,x,y) == color) &&
+	(GetBoard(board,x-1,y+1) == 0) && 
+	(GetBoard(board,x+1,y-1) == color) &&
+	((GetBoard(board,x+2,y-2) == swap(color)) ||
+	 (GetBoard(board,x+2,y-2) == 3)))
+	total++;
+    return total;
+}
+
+int open2(int board[][], int x, int y, int color) {
+    int total = 0;
+    if (board[x][y] == 0) 
+	return 0;
+    if ((GetBoard(board,x,y) == color) &&
+	(GetBoard(board,x-1,y) == 0) && 
+	(GetBoard(board,x+1,y) == color) && 
+	 (GetBoard(board,x+2,y) == 0))
+	total++;
+    if ((GetBoard(board,x,y) == color) &&
+	(GetBoard(board,x,y-1) == 0) && 
+	(GetBoard(board,x,y+1) == color) &&
+	(GetBoard(board,x,y+2) == 0))
+	total++;
+    if ((GetBoard(board,x,y) == color) &&
+	(GetBoard(board,x-1,y-1) == 0) && 
+	(GetBoard(board,x+1,y+1) == color) &&
+	(GetBoard(board,x+2,y+2) == 0))
+	total++;
+    if ((GetBoard(board,x,y) == color) &&
+	(GetBoard(board,x-1,y+1) == 0) && 
+	(GetBoard(board,x+1,y-1) == color) &&
+	(GetBoard(board,x+2,y-2) == 0))
+	total++;
+    return total;
+}
+int half_open3(int board[][], int x, int y, int color) {
+    int total = 0;
+    if (board[x][y] == 0) 
+	return 0;
+    if ((GetBoard(board,x,y) == color) &&
+	((GetBoard(board,x-1,y) == swap(color)) || 
+	 (GetBoard(board,x-1,y) == 3)) && 
+	(GetBoard(board,x+1,y) == color) && 
+	(GetBoard(board,x+2,y) == color) &&
+	(GetBoard(board,x+3,y) ==0))
+	total++;
+    if ((GetBoard(board,x,y) == color) &&
+	((GetBoard(board,x,y-1) == swap(color)) || 
+	 (GetBoard(board,x,y-1) == 3)) &&
+	(GetBoard(board,x,y+1) == color) &&
+	(GetBoard(board,x,y+2) == color) &&
+	(GetBoard(board,x,y+3) == 0))
+	total++;
+    if ((GetBoard(board,x,y) == color) &&
+	((GetBoard(board,x-1,y-1) == swap(color)) || 
+	 (GetBoard(board,x-1,y-1) == 3)) && 
+	(GetBoard(board,x+1,y+1) == color) &&
+	(GetBoard(board,x+2,y+2) == color) &&
+	(GetBoard(board,x+3,y+3) == 0))
+	total++;
+    if ((GetBoard(board,x,y) == color) &&
+	((GetBoard(board,x-1,y+1) == swap(color)) ||
+	 (GetBoard(board,x-1,y+1) == 3)) && 
+	(GetBoard(board,x+1,y-1) == color) &&
+	(GetBoard(board,x+2,y-2) == color) &&
+	(GetBoard(board,x+3,y-3) == 0))
+	total++;
+    if ((GetBoard(board,x,y) == color) &&
+	(GetBoard(board,x-1,y) == 0) && 
+	(GetBoard(board,x+1,y) == color) && 
+	(GetBoard(board,x+2,y) == color) && 
+	((GetBoard(board,x+3,y) == swap(color)) ||
+	 (GetBoard(board,x+3,y) == 3)))
+	total++;
+    if ((GetBoard(board,x,y) == color) &&
+	(GetBoard(board,x,y-1) == 0) && 
+	(GetBoard(board,x,y+1) == color) &&
+	(GetBoard(board,x,y+2) == color) &&
+	((GetBoard(board,x,y+3) == swap(color)) ||
+	 (GetBoard(board,x,y+3) == 3)))
+	total++;
+    if ((GetBoard(board,x,y) == color) &&
+	(GetBoard(board,x-1,y-1) == 0) && 
+	(GetBoard(board,x+1,y+1) == color) &&
+	(GetBoard(board,x+2,y+2) == color) &&
+	((GetBoard(board,x+3,y+3) == swap(color)) ||
+	 (GetBoard(board,x+3,y+3) == 3)))
+	total++;
+    if ((GetBoard(board,x,y) == color) &&
+	(GetBoard(board,x-1,y+1) == 0) && 
+	(GetBoard(board,x+1,y-1) == color) &&
+	(GetBoard(board,x+2,y-2) == color) &&
+	((GetBoard(board,x+3,y-3) == swap(color)) ||
+	 ((GetBoard(board,x+3,y-3) == 3))))
+	total++;
+    return total;
+}
+int open3(int board[][], int x, int y, int color) {
+    int total = 0;
+    if (board[x][y] == 0) 
+	return 0;
+    if ((GetBoard(board,x,y) == color) &&
+	(GetBoard(board,x-1,y) == 0) && 
+	(GetBoard(board,x+1,y) == color) && 
+	(GetBoard(board,x+2,y) == color) &&
+	(GetBoard(board,x+3,y) ==0) )
+	total++;
+    if ((GetBoard(board,x,y) == color) &&
+	(GetBoard(board,x,y-1) == 0) && 
+	(GetBoard(board,x,y+1) == color) &&
+	(GetBoard(board,x,y+2) == color) &&
+	(GetBoard(board,x,y+3) == 0))
+	total++;
+    if ((GetBoard(board,x,y) == color) &&
+	(GetBoard(board,x-1,y-1) == 0) && 
+	(GetBoard(board,x+1,y+1) == color) &&
+	(GetBoard(board,x+2,y+2) == color) &&
+	(GetBoard(board,x+3,y+3) == 0))
+	total++;
+    if ((GetBoard(board,x,y) == color) &&
+	(GetBoard(board,x-1,y+1) == 0) && 
+	(GetBoard(board,x+1,y-1) == color) &&
+	(GetBoard(board,x+2,y-2) == color) &&
+	(GetBoard(board,x+3,y-3) == 0))
+	total++;
+    return total;
+}
+
+int four(int board[][], int x, int y, int color) {
+    int total = 0;
+    if (board[x][y] == 0) 
+	return 0;
+    if ((GetBoard(board,x,y) == color) &&
+	(GetBoard(board,x+1,y) == color) && 
+	(GetBoard(board,x+2,y) == color) &&
+	(GetBoard(board,x+3,y) == color))
+	total++;
+    if ((GetBoard(board,x,y) == color) &&
+	(GetBoard(board,x,y+1) == color) &&
+	(GetBoard(board,x,y+2) == color) &&
+	(GetBoard(board,x,y+3) == color))
+	total++;
+    if ((GetBoard(board,x,y) == color) &&
+	(GetBoard(board,x+1,y+1) == color) &&
+	(GetBoard(board,x+2,y+2) == color) &&
+	(GetBoard(board,x+3,y+3) == color))
+	total++;
+    if ((GetBoard(board,x,y) == color) &&
+	(GetBoard(board,x+2,y-2) == color) &&
+	(GetBoard(board,x+3,y-3) == color) &&
+	(GetBoard(board,x+4,y-4) == color))
+	total++;
+    return total;
+}
+
+
+int GetComputerMove(int board[][]) {
+    int best_value;
+    int best_move;
+    int i;
+    int value;
+
+    for (i=0; !legal(i, board); i++);
+    DoMove(board,i,2);
+    best_move = i;
+    best_value = value(board);
+    UndoMove(board,i);
+    for (i=i+1;i<10;i++) {
+	DoMove(board,i,2);
+	value = value(board);
+	if (value < best_value) {
+	    best_value = value;
+	    best_move = i;
+	}
+	UndoMove(board,i);
+    }
+    return best_move;
+}
+
+/* min half of min-max algorithm   
+*/
+void min(int board[][], int level, MinMax result) {
+    int best_value;
+    int best_move;
+    int i;
+    int value;
+
+    if (level == 0) {
+	result.value = value(board);
+	result.move = -1;
+	return;
+    }
+    for (i=0; !legal(i, board); i++);
+    DoMove(board,i,2);
+    best_move = i;
+    max(board,level-1,result);
+    best_value = result.value;
+    UndoMove(board,i);
+    for (i=i+1;i<10;i++) {
+	DoMove(board,i,2);
+	max(board,level-1,result);
+	value = result.value;
+	if (value < best_value) {
+	    best_value = value;
+	    best_move = i;
+	}
+	UndoMove(board,i);
+    }
+    result.move = best_move;
+    result.value = best_value;
+}
+
+/* max half of min-max algorithm   
+*/
+void max(int board[][], int level, MinMax result) {
+    int best_value;
+    int best_move;
+    int i;
+    int value;
+
+    if (level == 0) {
+	result.value = value(board);
+	result.move = -1;
+	return;
+    }
+    for (i=0; !legal(i, board); i++);
+    DoMove(board,i,1);
+    best_move = i;
+    min(board, level-1, result);
+    best_value = result.value;
+    UndoMove(board,i);
+    for (i=i+1;i<10;i++) {
+	DoMove(board,i,1);
+	min(board,level-1,result);
+	value = result.value;
+	if (value > best_value) {
+	    best_value = value;
+	    best_move = i;
+	}
+	UndoMove(board,i);
+    }
+    result.move = best_move;
+    result.value = best_value;
+}

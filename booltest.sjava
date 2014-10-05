@@ -1,0 +1,44 @@
+/*  This code tests relational and boolean
+    operations.  Reads in 2 numbers and 
+    prints out the results of all relational
+    operations on those numbers (printing 1
+    for true, and 0 for false), and then 
+    converts the numbers into booleans
+    (with 0=false, !0=true), and then tests
+    all boolean operations on them.
+*/
+
+void PrintBoolean(boolean x) {
+    if (x)
+       Print(1);
+    else
+       Print(0);
+}
+
+boolean MakeBool(int x) {
+   return x != 0;
+}
+
+void main() {
+
+   while(true) {
+     int x =Read();
+     int y =Read();
+     PrintBoolean(x < y);
+     PrintBoolean(x <= y);
+     PrintBoolean(x > y);
+     PrintBoolean(x >= y);
+     PrintBoolean(x == y);
+     PrintBoolean(x != y);
+     Println();
+     boolean a = MakeBool(x);
+     boolean b = MakeBool(y);
+     PrintBoolean(a);
+     PrintBoolean(b);
+     PrintBoolean(!a);
+     PrintBoolean(!b);
+     PrintBoolean(a && b);
+     PrintBoolean(a || b);
+     Println();
+  }
+}

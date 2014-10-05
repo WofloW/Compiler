@@ -1,0 +1,205 @@
+/* Simple Connect4 game, two players
+   Game is played on a 10x10 board.  Players take turns
+   placing pieces on the board, trying to get 4 in a row,
+   either vertically, horizontally, or diagonally.
+   A piece may be placed only on the bottom row, or directly 
+   above a previously placed piece. (The physical game uses
+   a vertical board, and checkers that slide all the way
+   down until they are stopped by the bottom of the board
+   or a previously placed piece)
+
+   Player using the piece (1) goes first, player using the piece
+   (2) goes second.
+*/
+
+void PrintBoard(int board[][]);
+int swap(int piece);
+void DoMove(int board[][], int col, int piece);
+boolean win(int board[][], int lastmove);
+void ClearBoard(int board[][]);
+boolean legal(int move,int board[][]);
+int GetBoard(int board[][], int col, int row);
+
+
+        
+void main() {
+    int board[][];
+    int i;
+    boolean done = false;
+    int player = 1;
+    int move;
+    int numMoves = 0;
+    int winner = 0;
+
+    board = new int[10][]; 
+    for (i=0; i<10; i++)
+       board[i] = new int[10]; 
+    ClearBoard(board); 
+
+    while (!done) {
+	PrintBoard(board);
+	do {
+	    move = Read();
+	} while (!legal(move,board));
+	DoMove(board, move, player);
+	numMoves++;
+	if (win(board,move)) {
+	    done = true;
+	    winner = player;
+	    }
+	if (numMoves == 100) {
+	    done = true;
+	    winner = 0;
+	} 
+	player = swap(player); 
+    }
+    PrintBoard(board);
+    Println();
+    Println();
+    Print(winner);
+    Println();
+ }
+
+/*  Returns true if a move is legal, false otherwise 
+*/
+boolean legal(int move,int board[][]) {
+    if ((move < 0) || (move > 9))
+	return false;
+    if (board[0][move] != 0)
+	return false;
+    return true;
+}
+
+/*  Clear the board -- set all board locations to 0
+*/
+void ClearBoard(int board[][]) {
+    int i;
+    int j;
+
+    for (i=0; i<10; i++)
+	for (j=0; j<10; j++)
+	   board[i][j] = 0;
+}
+
+
+/* Print out the board, with column numbers under it 
+*/
+void PrintBoard(int board[][]) {
+     int i;
+     int j;
+
+     for (i=0; i<10;i++) {
+        for (j=0; j<10; j++) 
+          Print(board[i][j]);
+        Println();
+     }
+     Println();
+     for (i=0; i<10; i++)
+	 Print(i);
+     Println();
+     Println();
+}
+
+int swap(int piece) {
+    if (piece == 1)
+	return 2;
+    else
+	return 1;
+}
+
+/* Implement a move -- update the board 
+*/
+void DoMove(int board[][], int col, int piece) {
+    
+    int i;
+    
+    for (i=1; i<10; i++) {
+	if (board[i][col] != 0) {
+	    board[i-1][col] = piece;
+	    return;
+	}
+    }
+    board[9][col] = piece;
+
+}
+
+/* Return true if the last move in column movecol
+   resulted in a 4-in-a-row, either horizontally,
+   vertically, or diagonally
+*/
+boolean win(int board[][], int movecol) {
+    
+    int moverow;
+    int length;
+    int color;
+    int delta;
+    
+    for (moverow=0; moverow <10 && GetBoard(board,moverow,movecol) == 0; moverow++);
+    if (GetBoard(board,moverow,movecol) == 0) return false;
+    color = board[moverow][movecol];
+    length = 0;
+    delta = 0;
+
+    while ((moverow+delta < 10 ) && GetBoard(board,moverow+delta,movecol) == color) {
+	length++;
+	delta++;
+    }
+    if (length >= 4) return true;
+    length = 0;
+    delta = 0;
+    while ((movecol+delta < 10) && GetBoard(board,moverow,movecol+delta) == color) {
+	length++;
+	delta++;
+    }
+    delta = 1;
+    while ((movecol-delta >= 0) && GetBoard(board,moverow,movecol-delta) == color) {
+	length++;
+	delta++;
+    }
+    if (length >= 4) return true;
+    delta = 0;
+    length = 0;
+    
+    while (movecol+delta < 10 && moverow +delta < 10 && 
+	   GetBoard(board,moverow+delta,movecol+delta) == color) {
+	length++;
+	delta++;
+    }
+    delta = 1;
+    while (movecol-delta >= 0 && moverow - delta >= 0 && 
+	   GetBoard(board,moverow-delta,movecol-delta) == color) {
+	length++;
+	delta++;
+    }
+
+    if (length >= 4) return true;
+
+    delta = 0;
+    length = 0;
+
+    while (movecol+delta < 10 && moverow -delta >= 0 && 
+	   GetBoard(board,moverow+delta,movecol-delta) == color) {
+	length++;
+	delta++;
+    }
+    delta = 1;
+    while (movecol-delta >= 0 && moverow + delta < 10 && 
+	   GetBoard(board,moverow-delta,movecol+delta) == color) {
+	length++;
+	delta++;
+    }
+    if (length >= 4) return true;
+
+    return false;
+}
+
+
+/*  Return the piece at location [col][row], if [col][row]
+    is in the board.   If the location is outside the 
+    board, return 0
+*/
+int GetBoard(int board[][], int col, int row) {
+    if ((col < 0) || (col > 9) || (row < 0) || (row > 9))
+	return 0;
+    return board[col][row];
+}

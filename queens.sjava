@@ -1,0 +1,75 @@
+void PrintBoard(int board[], int size);
+int Abs(int x);
+boolean Legal(int numcols, int board[]);
+void Solve(int numcols, int board[], int size);
+
+void main() {
+   int size;
+   int board[];
+
+   size = Read();   
+   board = new int[size];
+      
+   Solve(1, board,size);
+}
+
+void PrintBoard(int board[], int size) {
+
+   int i;
+   int j;
+ 
+   for (i=0; i<size; i++) {
+      for (j=0; j<board[i]; j++) 
+         Print(0);
+      Print(1);
+      for(j=board[i]+1; j<size; j++)
+         Print(0);
+      Println();
+   }   
+   Println();
+}
+
+
+int Abs(int x) {
+   if (x >= 0) 
+      return x;
+   else
+      return  0-x;
+}
+
+boolean Legal(int numcols, int board[]) {
+   int i;
+   int j;
+   boolean legal; 
+
+   legal = true;
+
+   for (i=0; i < numcols; i++) {
+      for (j=i+1; j<numcols; j++) {
+ 	 if ((board[i] == board[j]) ||
+	     (Abs(i-j) == Abs(board[i]-board[j]))) 
+	    legal = false;
+      }
+   }  
+   return legal;
+}
+
+void Solve(int numcols, int board[], int size) {
+   int i;
+
+
+   if (numcols > size)  {
+      PrintBoard(board,size);
+      Println();
+   }
+   else
+      for (i=0; i < size; i++) {
+         board[numcols-1] = i;
+	 if (Legal(numcols, board)) {
+	    Solve(numcols+1, board, size);
+         }
+      }
+}     
+
+
+

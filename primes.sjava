@@ -1,0 +1,65 @@
+/* Fun with primes! Reads in a limit L, and
+   then prints out all primes between <= L
+   twice -- first by checking each number 
+   individually from 2 to L to see if it has 
+   more than one factor, then by using the
+   sieve of Eratosthenes  */
+
+boolean divides(int x, int y) { 
+   if (((x / y) * y) == x)
+       return true;
+   else
+       return false;
+}
+
+
+int sqrt(int x) {
+   int i;
+   for (i=1; i<x; i++)
+      if (i*i > x)
+         return i-1;
+}
+
+boolean prime(int x) {
+   int i;
+   
+   for(i=2; i<x; i++)
+      if (divides(x,i))
+        return false;
+   return true;
+}
+
+
+void primes(int max) {
+   int i;
+
+   for (i=2; i<=max; i++)
+      if (prime(i))
+         Print(i);
+   Println();
+}
+
+void primes2(int max) {
+    int i;
+    int j;
+    boolean primes[] = new boolean[max+1];
+    for(i=2; i<=max; i++)
+        primes[i] = true;
+    for(i=2; i<=sqrt(max+1); i++)
+       if (primes[i]) {
+          for (j=i*2; j<=max; j = j + i)
+             primes[j] = false;
+       }
+    for(i=2; i<=max;i++)
+       if (primes[i])
+         Print(i);
+    Println();
+}
+
+void main() {
+
+     int x = Read();
+
+     primes(x);
+     primes2(x);
+}

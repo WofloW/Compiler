@@ -1,0 +1,10 @@
+
+
+
+void main() {
+	int x = 5;
+	int y = 4;
+  if (x == 5 || x>y)
+    Print(x);
+
+}
